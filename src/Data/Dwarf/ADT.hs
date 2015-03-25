@@ -750,7 +750,7 @@ data CompilationUnit = CompilationUnit
   , cuLanguage :: Dwarf.DW_LANG
   , cuName :: String
   , cuCompDir :: String
-  , cuLowPc :: Word64
+  , cuLowPc :: Maybe Word64
   , cuHighPc :: Maybe Word64
   , cuMRanges :: Maybe Word64
   , cuStmtList :: Word64 -- TODO: Parse this further
@@ -767,7 +767,7 @@ parseCU dieMap die =
   <*> (Dwarf.dw_lang <$> AttrGetter.getAttr DW_AT_language _ATVAL_UINT)
   <*> getName
   <*> AttrGetter.getAttr DW_AT_comp_dir _ATVAL_STRING
-  <*> getLowPC
+  <*> getMLowPC
   <*> getMHighPC
   <*> getMRanges
   <*> AttrGetter.getAttr DW_AT_stmt_list _ATVAL_UINT
