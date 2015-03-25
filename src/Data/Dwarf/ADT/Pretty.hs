@@ -131,6 +131,8 @@ ppType mName = result . recurseType
         mkBaseType $ "enum " <> PP.text name
       DefEnumerationType x@ADT.EnumerationType { ADT.enumName = Nothing } ->
         mkBaseType $ enumerationType x
+      DefStringType ADT.StringType { ADT.strtName = Just name } ->
+        mkBaseType $ "STRING(" <> PP.text name <> ")"
 
       DefPtrType ADT.PtrType { ADT.ptType = t } ->
         annotate (simplePrecedence Prefix) ("*" <>) $ recurseType t
@@ -200,6 +202,9 @@ defVariable :: (name -> Maybe String) -> ADT.Variable name -> PP.Doc
 defVariable f ADT.Variable
   { ADT.varName = name, ADT.varType = typeRef } = ppType (f name) typeRef
 
+defModule :: ADT.Module -> PP.Doc
+defModule (ADT.Module name) = "module: " <> PP.text (show name)
+
 defType :: DefType -> Maybe PP.Doc
 defType t = case t of
   DefBaseType _        -> Nothing
@@ -208,10 +213,12 @@ defType t = case t of
   DefVolatileType _    -> Nothing
   DefArrayType _       -> Nothing
   DefSubroutineType _  -> Nothing
+  DefStringType _      -> Nothing
   DefTypedef x         -> Just $ "Typedef: "         <> defTypedef x
   DefStructureType x   -> Just $ "StructureType: "   <> defStructureType x
   DefUnionType x       -> Just $ "UnionType: "       <> defUnionType x
   DefEnumerationType x -> Just $ "EnumerationType: " <> defEnumerationType x
+  DefModule x          -> Just $ "Module: "          <> defModule x
 
 def :: Boxed Def -> Maybe PP.Doc
 def Boxed { bDieId = i, bData = d } = fmap ((showPP i <> " " <>) . (<> ";")) $

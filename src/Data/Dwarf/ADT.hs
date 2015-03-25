@@ -23,6 +23,7 @@ module Data.Dwarf.ADT
   , SubprogramChild(..)
   , Subprogram(..), subprogramDefs
   , Variable(..)
+  , StringType(..), Module(..), Bound(..)
   ) where
 
 import Control.Applicative (Applicative(..), (<$>))
@@ -311,17 +312,37 @@ parseStructureType children =
 
 -- DW_AT_type=(DW_ATVAL_REF (DieID 101))
 -- DW_AT_upper_bound=(DW_ATVAL_UINT 1)
+-- DW_AT_lower_bound=(DW_ATVAL_UINT 1)
 data SubrangeType = SubrangeType
-  { subRangeUpperBound :: Maybe Word
+  { subRangeUpperBound :: Maybe Bound
+  , subRangeLowerBound :: Maybe Bound
   , subRangeType :: TypeRef
   } deriving (Eq, Ord, Show)
 
+data Bound
+   = BoundExpression Dwarf.DW_OP
+   | BoundConstantUnsigned Word64
+   | BoundConstantSigned Int64
+   deriving (Eq,Ord,Show)
+
 parseSubrangeType :: DIE -> M (Boxed SubrangeType)
 parseSubrangeType die =
+  let parseBound' = parseBound (dieReader die) in
   box DW_TAG_subrange_type die $
   SubrangeType
-  <$> (fmap fromIntegral <$> AttrGetter.findAttr DW_AT_upper_bound _ATVAL_UINT)
+  <$> (fmap parseBound' <$> AttrGetter.findAttrVal DW_AT_upper_bound)
+  <*> (fmap parseBound' <$> AttrGetter.findAttrVal DW_AT_lower_bound)
   <*> parseTypeRef
+
+parseBound :: Dwarf.Reader -> DW_ATVAL -> Bound
+parseBound reader attrVal =
+  case attrVal of
+    Dwarf.DW_ATVAL_BLOB opStr -> BoundExpression $ Dwarf.parseDW_OP reader opStr
+    Dwarf.DW_ATVAL_UINT uint  -> BoundConstantUnsigned uint
+    Dwarf.DW_ATVAL_INT  int   -> BoundConstantSigned int
+    _ ->
+      -- TODO: Use function from AttrGetter to get better error
+      error $ "bound of unknown type: " ++ show attrVal
 
 -- DW_AT_type=(DW_ATVAL_REF (DieID 62))
 data ArrayType = ArrayType
@@ -648,6 +669,26 @@ parseSubprogram reader children = do
         ] -> fmap SubprogramChildDef <$> parseDef child
       _ -> fakeBox child $ SubprogramChildOther $ dieTag child -- GNU extensions, safe to ignore here
 
+data Module = Module
+  { modName :: Maybe String 
+  } deriving (Eq, Ord, Show)
+
+parseModule :: [DIE] -> AttrGetterT M Module
+parseModule children = do
+   Module
+      <$> getMName
+
+data StringType = StringType
+  { strtName      :: Maybe String 
+  , strtByteSize  :: Maybe Word
+  } deriving (Eq, Ord, Show)
+
+parseStringType :: [DIE] -> AttrGetterT M StringType
+parseStringType children = do
+   StringType
+      <$> getMName
+      <*> getMByteSize
+
 data DefType
   = DefBaseType BaseType
   | DefTypedef Typedef
@@ -659,6 +700,8 @@ data DefType
   | DefUnionType UnionType
   | DefEnumerationType EnumerationType
   | DefSubroutineType SubroutineType
+  | DefStringType StringType
+  | DefModule Module
   deriving (Eq, Ord, Show)
 
 data Def
@@ -681,6 +724,8 @@ parseDefTypeI die =
   DW_TAG_union_type       -> DefUnionType       <$> parseUnionType (dieChildren die)
   DW_TAG_enumeration_type -> DefEnumerationType <$> parseEnumerationType (dieChildren die)
   DW_TAG_subroutine_type  -> DefSubroutineType  <$> parseSubroutineType (dieChildren die)
+  DW_TAG_string_type      -> DefStringType      <$> parseStringType (dieChildren die)
+  DW_TAG_module           -> DefModule          <$> parseModule (dieChildren die)
   _ -> error $ "unsupported def type: " ++ show die
 
 parseDef :: DIE -> M (Boxed Def)
