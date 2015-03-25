@@ -111,7 +111,7 @@ parseAt i = cachedMake i $ do
   let die = Dwarf.dieRefsDIE $ dieMap Map.! i
   parseDefTypeI die
 
-data Loc = LocOp Dwarf.DW_OP | LocUINT Word64
+data Loc = LocOp [Dwarf.DW_OP] | LocUINT Word64
   deriving (Eq, Ord, Show)
 
 -------------------
@@ -239,7 +239,7 @@ parseVolatileType = VolatileType <$> parseTypeRef
 
 data MemberLocation
   = MemberLocationConstant Word64
-  | MemberLocationExpression Dwarf.DW_OP
+  | MemberLocationExpression [Dwarf.DW_OP]
   deriving (Eq, Ord, Show)
 
 -- DW_AT_name=(DW_ATVAL_STRING "__val")
@@ -320,7 +320,7 @@ data SubrangeType = SubrangeType
   } deriving (Eq, Ord, Show)
 
 data Bound
-   = BoundExpression Dwarf.DW_OP
+   = BoundExpression [Dwarf.DW_OP]
    | BoundConstantUnsigned Word64
    | BoundConstantSigned Int64
    deriving (Eq,Ord,Show)
