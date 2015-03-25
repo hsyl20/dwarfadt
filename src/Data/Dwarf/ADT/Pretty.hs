@@ -1,5 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Data.Dwarf.ADT.Pretty (compilationUnit, dwarf) where
+module Data.Dwarf.ADT.Pretty
+   ( compilationUnit
+   , dwarf
+   , structureType
+   , unionType
+   , enumerationType
+   , paramList
+   , typedef
+   , subprogram
+   ) where
 
 import Control.Applicative ((<$>))
 import Data.Dwarf (DW_ATE(..))
@@ -149,6 +158,9 @@ ppType mName = result . recurseType
         { ADT.subrRetType = t, ADT.subrFormalParameters = params } ->
         annotate (simplePrecedence Postfix) (<> paramList params) $ recurseType t
 
+typedef :: ADT.Typedef -> PP.Doc
+typedef = defTypedef
+
 defTypedef :: ADT.Typedef -> PP.Doc
 defTypedef (ADT.Typedef name _ typeRef) = "typedef " <> ppType (Just name) typeRef
 
@@ -179,6 +191,9 @@ subprogChild (Boxed dId dat) =
   ADT.SubprogramChildLabel -> Nothing
   ADT.SubprogramChildLocalVariable _ -> Nothing
   ADT.SubprogramChildOther _ -> Nothing
+
+subprogram :: ADT.Subprogram -> PP.Doc
+subprogram = defSubprogram
 
 defSubprogram :: ADT.Subprogram -> PP.Doc
 defSubprogram ADT.Subprogram
